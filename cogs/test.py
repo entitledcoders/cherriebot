@@ -93,5 +93,5 @@ class test(commands.Cog):
             await ctx.send(text)
         await browser.close()
 
-def setup(bot):
-    bot.add_cog(test(bot))
+async def setup(bot):
+    await bot.add_cog(test(bot))

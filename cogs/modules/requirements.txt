@@ -1,0 +1,4 @@
+arsenic==21.8
+Pillow==9.2.0
+pyppeteer==1.0.2
+rembg==2.0.21

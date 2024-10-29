@@ -5,7 +5,7 @@ class GermaniumElement(object):
     async def new(self):
         self = GermaniumElement()
         self.avail = True
-        self.browser = await launch(autoClose = False)
+        self.browser = await launch(autoClose = True)
         self.driver = (await self.browser.pages())[0]
         return self
     

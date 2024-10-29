@@ -16,7 +16,7 @@ class pingmsg(commands.Cog):
         if len(msg)>0:
             await message.reply(msg)
 
-    @commands.command(aliases=['afk', 'away'], help="~afk ~away [message]. Sends your away message if pinged")
+    @commands.hybrid_command(aliases=['afk', 'away'], help="~afk ~away [message]. Sends your away message if pinged")
     async def setawaymsg(self, ctx, *, msg=None):
         await ctx.message.delete()
 
@@ -33,5 +33,5 @@ class pingmsg(commands.Cog):
             await user.send(f'You have set your away message to {msg}.')
         print(usermessages)
 
-def setup(bot):
-    bot.add_cog(pingmsg(bot))
+async def setup(bot):
+    await bot.add_cog(pingmsg(bot))

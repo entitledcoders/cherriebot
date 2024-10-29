@@ -5,5 +5,5 @@ from jishaku.features.root_command import RootCommand
 class jishaku(PythonFeature, RootCommand):
     pass
 
-def setup(bot: commands.Bot):
-    bot.add_cog(jishaku(bot=bot))
+async def setup(bot: commands.Bot):
+    await bot.add_cog(jishaku(bot=bot))

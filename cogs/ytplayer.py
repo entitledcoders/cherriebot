@@ -1,8 +1,7 @@
 import discord
-import pafy
 import asyncio
 import random
-from .modules.microYT import Youtube, YoutubeSearch, YoutubePlaylist
+from .modules.microYT import Youtube, YoutubePlaylist, YoutubeSearch
 from discord.ext import commands
 from discord.ui import Button, View
 from discord import ButtonStyle, Interaction
@@ -44,9 +43,8 @@ class Choice(View):
 # - - - - - ( END VIEW COMPONENTS ) - - - - - #
 
 
-class ytplayer(commands.Cog):
-
 # - - - - - ( START INTERNAL COMPONENTS ) - - - - - #
+class ytplayer(commands.Cog):
     song_queue = {}
     volume = {}
     loopMode = {}
@@ -54,9 +52,13 @@ class ytplayer(commands.Cog):
     idleMode = {}
     idleSong = {}
 
+    # FFMPEGOPTIONS = {
+    #                 'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 
+    #                 'options'       : '-vn'
+    #                 }
     FFMPEGOPTIONS = {
-                    'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 
-                    'options'       : '-vn'
+                        'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
+                        'options': '-vn -filter:a "volume=0.25"'
                     }
 
     def __init__(self, bot):
@@ -100,18 +102,15 @@ class ytplayer(commands.Cog):
     async def play_song(self, ctx, song):
         self.currentsong[ctx.guild.id] = song
         await ctx.send(f'```Now playing: {song.title}```')
-        if song.duration == 'mp3':
-            url = song.url
-        else:
-            try:
-                url = pafy.new(song.url).getbestaudio().url
-            except Exception as e:
-                await ctx.send(f'```Encountered problem: {e} \nSkipping... (Retry: {self.retry+1}```')
-                if self.retry > 2:
-                    self.song_queue[ctx.guild.id].pop(0)
-                return await self.play_next(ctx)
         try:
-            ctx.voice_client.play(discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(url, executable='C:\\ffmpeg\\bin\\ffmpeg.exe')), after=lambda e: self.bot.loop.create_task(self.play_next(ctx)))
+            await song.dl()
+        except Exception as e:
+            await ctx.send(f'```Error occured: {e} \nSkipping... (Retry: {self.retry+1})```')
+            if self.retry > 2:
+                self.song_queue[ctx.guild.id].pop(0)
+            return await self.play_next(ctx)
+        try:
+            ctx.voice_client.play(discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(song.file, executable='C:\\ffmpeg\\bin\\ffmpeg.exe')), after=lambda e: self.bot.loop.create_task(self.play_next(ctx)))
         except Exception as e:
             await ctx.send(f'```Error fetching the audio stream!: {e} \nRetrying...```') 
             return await self.play_song(ctx, song)
@@ -119,27 +118,30 @@ class ytplayer(commands.Cog):
         ctx.voice_client.source.volume = self.volume[ctx.guild.id]/100
 # - - - - - ( END INTERNAL COMPONENTS ) - - - - - #
 
-# - - - - - ( START COMMANDS COMPONENTS ) - - - - - #
 
+# - - - - - ( START COMMANDS COMPONENTS ) - - - - - #
 # JOIN
-    @commands.command(
+    @commands.hybrid_command(
         help = "~join",
-        brief = "Requests bot to enter your voice channel. If bot is in another channel, it transfers to your channel.",
+        brief = "Requests bot to enter your voice channel.",
         description = ""
     )
     async def join(self, ctx):
         if ctx.author.voice is None:
             await ctx.send(f'You should join a voice channel first {ctx.author}!')
         else:
-            voice_channel = ctx.author.voice.channel
-            if ctx.voice_client is None:
-                await voice_channel.connect()
-            else:
-                await ctx.voice_client.move_to(voice_channel)
-            await ctx.send(f'```Joining {voice_channel}```')
+            try:
+                voice_channel = ctx.author.voice.channel
+                if ctx.voice_client is None:
+                    await voice_channel.connect()
+                else:
+                    await ctx.voice_client.move_to(voice_channel)
+                await ctx.send(f'```Joining {voice_channel}```')
+            except Exception as e:
+                await ctx.send(f'```Error occured: {e}```')
 
 # LEAVE
-    @commands.command(
+    @commands.hybrid_command(
         help = "~leave",
         brief = "Requests bot to leave current voice channel.",
         description = ""
@@ -151,7 +153,7 @@ class ytplayer(commands.Cog):
             await ctx.send("I am not connected to a voice channel.")
 
 # SEARCH
-    @commands.command(
+    @commands.hybrid_command(
         help = "~search [title]",
         brief = "Searches for title in Youtube and users can choose between 5 results.",
         description = ""
@@ -163,7 +165,7 @@ class ytplayer(commands.Cog):
         await ctx.send("Searching for songs!")
         
         try:
-            songs = await YoutubeSearch().new(session=await self.bot.sessions.next(), query=song, qty=5)
+            songs = await YoutubeSearch().new(query=song, qty=5)
         except Exception as error:
             await ctx.send(f'```diff\n- {error} \n```')
 
@@ -183,7 +185,7 @@ class ytplayer(commands.Cog):
             await self.play(ctx, song=song)
 
 # PLAY
-    @commands.command(
+    @commands.hybrid_command(
         aliases=['p'], 
         help = "~p [title / yt url / mp3]", 
         brief = "Plays / queues the song into queue",
@@ -204,9 +206,10 @@ class ytplayer(commands.Cog):
                 fp = 'music/' + attachment.filename
                 await attachment.save(fp)
                 song = Youtube(
-                    url = fp, 
+                    url = "mp3", 
                     title = attachment.filename[:-4].replace('_', ' '), 
-                    duration = 'mp3'
+                    duration = "NA",
+                    file = fp
                 )
                 await ctx.send(f'```Music file is downloaded, {song.url}```')
                 break
@@ -218,7 +221,7 @@ class ytplayer(commands.Cog):
                 return await self.playlist(ctx, song=song)
 
             try:
-                song = await YoutubeSearch().new(session=await self.bot.sessions.next(), query=song)
+                song = await YoutubeSearch().new(query=song)
                 song = song[0]
             except Exception as error:
                 return await ctx.send(f'```diff\n- {error} \n```')
@@ -243,7 +246,7 @@ class ytplayer(commands.Cog):
         await self.play_song(ctx, song)
 
 # PLAY NEXT
-    @commands.command(
+    @commands.hybrid_command(
         aliases=['pn'],
         help = "~pn [title / yt url / mp3]",
         brief = "Forces song to be played after current song.",
@@ -253,17 +256,17 @@ class ytplayer(commands.Cog):
         await self.play(ctx, song=song, pn=True)
 
 # PLAYLIST
-    @commands.command(
+    @commands.hybrid_command(
         aliases=['pl', 'list'], 
         help = "~pl [yt url] (start index) (stop index).",
-        brief = "Adds multiple song up to queue limit (200) from Youtube Playlist. Without index, adds first 100 songs.",
+        brief = "Queues songs from playlist from start to stop index (Max 200). By default, first 100. ",
         description = ""
     )
     async def playlist(self, ctx, song=None, start=0, end=100):
         if song is None:
             return await ctx.send(f'Include a playlist link {ctx.author.mention}')
         
-        p = await YoutubePlaylist().new(session=await self.bot.sessions.next(), url=song)
+        p = await YoutubePlaylist().new(url=song)
         queue = self.song_queue[ctx.guild.id]
         quota = 200 - len(queue)
 
@@ -279,7 +282,7 @@ class ytplayer(commands.Cog):
         await ctx.send(f'```and another {len(p[start+1:end])} songs to the queue```')
 
 # FORCE SKIP
-    @commands.command(
+    @commands.hybrid_command(
         aliases=['fs'],
         help = "~fs",
         brief = "Forcefully skips currently playing song.",
@@ -290,7 +293,7 @@ class ytplayer(commands.Cog):
         ctx.voice_client.stop()
 
 # SET VOLUME
-    @commands.command(
+    @commands.hybrid_command(
         aliases = ['volume', 'v', 'vol'], 
         help = "~vol [0-200]",
         brief = "Sets bot audio volume. Default: 25",
@@ -302,7 +305,7 @@ class ytplayer(commands.Cog):
         ctx.voice_client.source.volume = volume/100
 
 # DISPLAY QUEUE
-    @commands.command(
+    @commands.hybrid_command(
         aliases=['q'],
         help = "~q",
         brief = "Displays all songs in queue.",
@@ -328,7 +331,7 @@ class ytplayer(commands.Cog):
         await message.edit(embed=embed)
 
 # REMOVE FROM QUEUE
-    @commands.command(
+    @commands.hybrid_command(
         aliases=['rem', 'remove'],
         help = "~rem [index]",
         brief = "Removes song in the queue at specified index",
@@ -341,7 +344,7 @@ class ytplayer(commands.Cog):
         queue.pop(i-1)
 
 # CLEAR QUEUE
-    @commands.command(
+    @commands.hybrid_command(
         aliases=['clear'],
         help = f"~clear",
         brief = "Removes all songs in the queue.",
@@ -351,8 +354,28 @@ class ytplayer(commands.Cog):
         self.song_queue[ctx.guild.id] = []
         await ctx.send("```Song queue have been cleared!```")
 
+# SAVE QUEUE
+    @commands.hybrid_command(
+        aliases=['saveq'],
+        help = f"~saveq",
+        brief = "Not yet implemented (WIP)",
+        description = ""
+    )
+    async def savequeue(self, ctx):
+        pass
+
+# LOAD QUEUE
+    @commands.hybrid_command(
+        aliases=['loadq'],
+        help = f"~loadq",
+        brief = "Not yet implemented (WIP)",
+        description = ""
+    )
+    async def loadqueue(self, ctx):
+        pass
+
 # NOW PLAYING
-    @commands.command(
+    @commands.hybrid_command(
         aliases=['np'],
         help = "~np",
         brief = "Displays currently playing song title and duration",
@@ -367,7 +390,7 @@ class ytplayer(commands.Cog):
         await ctx.send(embed = embed)
 
 # PAUSE
-    @commands.command(
+    @commands.hybrid_command(
         help = "~pause",
         brief = "Pauses audio from bot.",
         description = ""
@@ -380,7 +403,7 @@ class ytplayer(commands.Cog):
         return await ctx.send("```The current song has been paused.```")
 
 # RESUME
-    @commands.command(
+    @commands.hybrid_command(
         help = "~resume",
         brief = "Resumes from pausing audio.",
         description = ""
@@ -396,7 +419,7 @@ class ytplayer(commands.Cog):
         return await ctx.send("```The current song has been resumed.```")
 
 # SHUFFLE
-    @commands.command(
+    @commands.hybrid_command(
         help = "~shuffle",
         brief = "Shuffles order of song in queue.",
         description = ""
@@ -406,7 +429,7 @@ class ytplayer(commands.Cog):
         return await ctx.send('Queue have been shuffled!')
 
 # IDLE MODE
-    @commands.command(
+    @commands.hybrid_command(
         help = "~idle [True / False]",
         brief = "When queue is empty, plays specified idle song if idle mode is True.",
         description = ""
@@ -418,21 +441,20 @@ class ytplayer(commands.Cog):
         return await ctx.send(f'Idle mode has set to {mode}. Make sure you have idleSong applied')
 
 # IDLE SONG
-    @commands.command(
+    @commands.hybrid_command(
         help="~idlesong [title / yt url]",
         brief = "Sets the idle song for idle mode.",
         description = ""
     )
     async def idlesong(self, ctx, song):
-        self.idleSong[ctx.guild.id] = (await YoutubeSearch().new(session=await self.bot.sessions.next(), query=song))[0]
+        self.idleSong[ctx.guild.id] = (await YoutubeSearch().new(query=song))[0]
         return await ctx.send('Idle song has updated!')
 
 # LOOP SETTING
-    @commands.command(
+    @commands.hybrid_command(
         help = "~loop [off / song / queue]",
         brief = "Changes loop settings on playlist to repeat song, queue or off.",
-        description = "Loop off will go through the playlist normally, loop song will repeat the current song indefinitely, \
-            loop queue will play the whole queue song and repeats the whole queue."
+        description = ""
     )
     async def loop(self, ctx, mode=None):
         modeList = ['song', 'queue', 'off']
@@ -444,5 +466,5 @@ class ytplayer(commands.Cog):
     
 # - - - - - ( END COMMAND COMPONENTS ) - - - - - #
 
-def setup(bot):
-    bot.add_cog(ytplayer(bot))
+async def setup(bot):
+    await bot.add_cog(ytplayer(bot))

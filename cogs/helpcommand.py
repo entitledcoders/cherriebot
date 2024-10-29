@@ -38,18 +38,18 @@ class helpcommand(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command()
+    @commands.hybrid_command()
     async def helpdefault(self, ctx):
         self.bot.help_command = commands.DefaultHelpCommand()   
-        await ctx.send('```Set to default help menu```')
+        await ctx.send('```Help Menu: Default```')
     
-    @commands.command()
+    @commands.hybrid_command()
     async def helpcustom(self, ctx):
         self.bot.help_command = custommenu()
-        await ctx.send('```Set to custom help menu```')
+        await ctx.send('```Help Menu: Custom 1```')
 
-def setup(bot):
-    bot.add_cog(helpcommand(bot))
+async def setup(bot):
+    await bot.add_cog(helpcommand(bot))
 
 class custommenu(commands.HelpCommand):
     def __init__(self, **options):

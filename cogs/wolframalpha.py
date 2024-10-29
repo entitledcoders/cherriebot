@@ -70,13 +70,13 @@ class wolframalpha(commands.Cog):
             if 'base64' in image:
                 image = image.split(',')[1]
                 print(image)
-                with open('/temp/image.jpg', 'wb') as f:
+                with open('/temp/wolfram/image.jpg', 'wb') as f:
                     decoded_image_data = base64.b64decode(image)
                     f.write(decoded_image_data)
-                image = discord.File('/temp/image.jpg')
+                image = discord.File('/temp/wolfram/image.jpg')
                 await ctx.send(file=image)
             else:
                 await ctx.send(image)
 
-def setup(bot):
-    bot.add_cog(wolframalpha(bot))
+async def setup(bot):
+    await bot.add_cog(wolframalpha(bot))

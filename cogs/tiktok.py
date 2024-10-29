@@ -37,7 +37,7 @@ class tiktok(commands.Cog):
         if message.author.bot:
             return
         
-        if ('http' in message.content) and ('tiktok.com' in message.content):
+        if 'tiktok.com' in message.content:
             try:
                 tiktok = message.content.split(' ')[0]
                 say = message.content[len(tiktok)+1:]
@@ -48,7 +48,10 @@ class tiktok(commands.Cog):
                 await driver.goto(tiktok)
                 await driver.waitForSelector('video', timeout = 30000)
                 url = await driver.Jeval('video', '(e => e.src)')
-                desc = await driver.Jeval('div[data-e2e=video-desc]', '(e => e.innerText)')
+                try:
+                    desc = await driver.Jeval('div[data-e2e=browse-video-desc]', '(e => e.innerText)')
+                except:
+                    desc = ""
                 async with aiohttp.ClientSession() as session:
                     async with session.get(url) as resp:
                         if resp.status == 200:
@@ -57,7 +60,7 @@ class tiktok(commands.Cog):
                             if len(desc)>0:
                                 embed.add_field(name='Description', value=desc)
                             embed.set_footer(text=f'Message: {say}')
-                            tempfile = f'/temp/tiktok-b{next(self.hex)}.mp4'
+                            tempfile = f'/temp/tiktok/tiktok-b{next(self.hex)}.mp4'
                             f = await aiofiles.open(tempfile, mode='wb')
                             await f.write(await resp.read())
                             await f.close()
@@ -79,5 +82,5 @@ class tiktok(commands.Cog):
                 await message.reply(e)
             sess.release()
 
-def setup(bot):
-    bot.add_cog(tiktok(bot))
+async def setup(bot):
+    await bot.add_cog(tiktok(bot))
