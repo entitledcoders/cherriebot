@@ -9,9 +9,16 @@ import yt_dlp
 
 executor = concurrent.futures.ProcessPoolExecutor(max_workers=5)
 
-def ytdlp_download(url: str):
+def download(url: str):
+    print("masuk download")
     try:
+        print("masuk download")
+        print(url)
         destination = "/temp/music"
+        _id = url[-11:]
+        if exists(f"{destination}/{_id}.mp3"):
+            print(f"{_id} exists, skipping...")
+            return
         # Define options for yt-dlp
         ydl_opts = {
             'format': 'bestaudio/best',
@@ -27,11 +34,12 @@ def ytdlp_download(url: str):
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             # Download the audio
             ydl.download([url])
-        print("Audio downloaded successfully!")
+            print(f"downloading {_id}...")
+        # print("Audio downloaded successfully!")
     except Exception as e:
         print(f"An error occurred: {str(e)}")
 
-def download(url: str):
+def pytube_download(url: str):
     destination = "/temp/music"
     _id = url[-11:]
     if exists(f"{destination}/{_id}.mp3"):
@@ -72,6 +80,7 @@ class Youtube():
         total = total/60
     
     async def dl(self):
+        print(self.url)
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(None, download, self.url)
 

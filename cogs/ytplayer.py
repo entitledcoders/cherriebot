@@ -102,13 +102,15 @@ class ytplayer(commands.Cog):
     async def play_song(self, ctx, song):
         self.currentsong[ctx.guild.id] = song
         await ctx.send(f'```Now playing: {song.title}```')
+        self.retry = 0
+        # while 1:
         try:
             await song.dl()
         except Exception as e:
-            await ctx.send(f'```Error occured: {e} \nSkipping... (Retry: {self.retry+1})```')
+            self.retry += 1
+            await ctx.send(f'```Error occured: {e} \nSkipping... (Retry: {self.retry})```')
             if self.retry > 2:
-                self.song_queue[ctx.guild.id].pop(0)
-            return await self.play_next(ctx)
+                return await self.play_next(ctx)
         try:
             ctx.voice_client.play(discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(song.file, executable='C:\\ffmpeg\\bin\\ffmpeg.exe')), after=lambda e: self.bot.loop.create_task(self.play_next(ctx)))
         except Exception as e:
