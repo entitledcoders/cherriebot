@@ -531,7 +531,7 @@ class SimpleDicomReader(object):
                 data = data.astype(np.float32)
             else:
                 # Determine required range
-                minReq, maxReq = data.min(), data.max()
+                minReq, maxReq = data.min().item(), data.max().item()
                 minReq = min([minReq, minReq * slope + offset, maxReq * slope + offset])
                 maxReq = max([maxReq, minReq * slope + offset, maxReq * slope + offset])
 
@@ -703,7 +703,16 @@ class DicomSeries(object):
         self._entries.append(dcm)
 
     def _sort(self):
-        self._entries.sort(key=lambda k: k.InstanceNumber)
+        self._entries.sort(
+            key=lambda k: (
+                k.InstanceNumber,
+                (
+                    k.ImagePositionPatient[2]
+                    if hasattr(k, "ImagePositionPatient")
+                    else None
+                ),
+            )
+        )
 
     def _finish(self):
         """

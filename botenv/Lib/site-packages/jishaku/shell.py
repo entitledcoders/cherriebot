@@ -6,7 +6,7 @@ jishaku.shell
 
 Tools related to interacting directly with the shell.
 
-:copyright: (c) 2021 Devon (Gorialis) R
+:copyright: (c) 2021 Devon (scarletcafe) R
 :license: MIT, see LICENSE for more details.
 
 """
@@ -20,13 +20,10 @@ import sys
 import time
 import typing
 
-T = typing.TypeVar('T')
+from typing_extensions import ParamSpec
 
-if sys.version_info < (3, 10):
-    from typing_extensions import ParamSpec
-    P = ParamSpec('P')
-else:
-    P = typing.ParamSpec('P')  # pylint: disable=no-member
+T = typing.TypeVar('T')
+P = ParamSpec('P')
 
 
 SHELL = os.getenv("SHELL") or "/bin/bash"
@@ -77,22 +74,39 @@ class ShellReader:
                 self.highlight = "cmd"
             # Windows doesn't use ANSI codes
             self.escape_ansi = True
+
+            self.process = subprocess.Popen(  # pylint: disable=consider-using-with
+                sequence,
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            )
+
+            self.stdin = self.process.stdin
+            self.stdout = self.process.stdout
         else:
+            import pty  # pylint: disable=import-outside-toplevel
+
             sequence = [SHELL, '-c', code]
             self.ps1 = "$"
             self.highlight = "ansi"
             self.escape_ansi = escape_ansi
 
-        self.process = subprocess.Popen(sequence, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # pylint: disable=consider-using-with
+            master_in, slave_in = pty.openpty()
+            self.process = subprocess.Popen(  # pylint: disable=consider-using-with
+                sequence,
+                stdin=slave_in, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            )
+            self.stdin = os.fdopen(master_in, 'wb')
+            self.stdout = self.process.stdout
+
         self.close_code = None
 
         self.loop = loop or asyncio.get_event_loop()
         self.timeout = timeout
 
-        self.stdout_task = self.make_reader_task(self.process.stdout, self.stdout_handler) if self.process.stdout else None
+        self.stdout_task = self.make_reader_task(self.stdout, self.stdout_handler) if self.process.stdout else None
         self.stderr_task = self.make_reader_task(self.process.stderr, self.stderr_handler) if self.process.stderr else None
 
-        self.queue: asyncio.Queue[str] = asyncio.Queue(maxsize=250)
+        self.queue: 'asyncio.Queue[str]' = asyncio.Queue(maxsize=250)
 
     @property
     def closed(self) -> bool:
@@ -169,3 +183,14 @@ class ShellReader:
                 return item
 
         raise StopAsyncIteration()
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        try:
+            item = self.queue.get_nowait()
+        except asyncio.QueueEmpty as exception:
+            raise StopIteration() from exception
+
+        return item

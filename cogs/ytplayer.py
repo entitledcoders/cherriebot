@@ -97,7 +97,7 @@ class ytplayer(commands.Cog):
                 await ctx.send(f'```Queue is empty!```')
                 await self.leave(ctx)
         
-        print(self.loopMode)
+        # print(self.loopMode)
 
     async def play_song(self, ctx, song):
         self.currentsong[ctx.guild.id] = song
@@ -220,9 +220,11 @@ class ytplayer(commands.Cog):
 
         if not hasattr(song, 'url'):
             if "&list" in song:
+                # print("COMMAND PLAYLIST CALLED")
                 return await self.playlist(ctx, song=song)
 
             try:
+                # print("START SEARCH")
                 song = await YoutubeSearch().new(query=song)
                 song = song[0]
             except Exception as error:
@@ -244,7 +246,7 @@ class ytplayer(commands.Cog):
 
             else:
                 return await ctx.send("```The queue is full!```")
-        
+        # print("CALL PLAY SONG")
         await self.play_song(ctx, song)
 
 # PLAY NEXT

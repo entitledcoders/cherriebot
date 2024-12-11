@@ -10,10 +10,10 @@ import yt_dlp
 executor = concurrent.futures.ProcessPoolExecutor(max_workers=5)
 
 def download(url: str):
-    print("masuk download")
+    # print("masuk download")
     try:
-        print("masuk download")
-        print(url)
+        # print("masuk download")
+        # print(url)
         destination = "/temp/music"
         _id = url[-11:]
         if exists(f"{destination}/{_id}.mp3"):
@@ -136,8 +136,11 @@ class YoutubeSearch(list):
     async def new(self, query : str, qty = 1):
         self = YoutubeSearch()
         
+        # print("QUERY YOUTUBE")
         results = VideosSearch(query=query, limit=11).result()['result']
         for video in results:
+            # print("FOUND: ")
+            # print(video)
             if len(self) == qty:
                 break
             duration = video['duration']
